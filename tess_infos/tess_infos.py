@@ -29,7 +29,7 @@ from time import time as timer
 from pathlib import Path
 
 #::: my modules
-import allesfitter
+#import allesfitter
 
 #::: plotting settings
 import seaborn as sns
@@ -45,8 +45,8 @@ __version__ = '0.1.0'
 
 
 class catalog(object):
-    '''
-    keys: 
+    """
+    keywords: 
         None / default   defaults to self.default_keys
         * / all          load all columns
         OBS              load all columns starting with OBS_
@@ -57,39 +57,17 @@ class catalog(object):
         
         also possible:
         ['default','OBS','mag']   load all default columns + all columns from OBS + all magnitudes
-    '''
+    """
     
-    def __init__(self, keys=None, path=None):
+    def __init__(self, path=None):
         
         #::: set the path to the catalog file
         if path is None:
             path = Path(__file__).parent.absolute()
         
         #::: translate input into keys
-        keys = list(np.atleast_1d(keys))
-        
-        if None in keys:
-            keys += self.get_default_keys()
-            keys.remove(None)
-            
-        if 'default' in keys:
-            keys += self.get_default_keys()
-            keys.remove('default')
-            
-        if 'all' in keys:
-            keys = self.get_all_keys()
-            
-        if '*' in keys:
-            keys = self.get_all_keys()
-        
-        if 'mag' in keys:
-            keys += self.get_magnitude_keys()
-        
-        keys = [i for i in self.get_all_keys() if any([s in i for s in keys])] #translate wild cards into keys
-        used = set() #buffer
-        keys = [x for x in keys if x not in used and (used.add(x) or True)] #make it unique while keeping the order
-        del used
-        
+        keys = self.get_all_keys()
+                
         #::: 15.8 seconds to load all
         # f = '/Users/mx/Dropbox (Personal)/Science/TESS/TESS_SC_target_lists/unique_targets_S001-S023_obs_tic_gaia_banyan.csv.gz'
         # self.data = pd.read_csv(f, dtype=str, usecols=keys)
@@ -100,14 +78,67 @@ class catalog(object):
         
         #::: 8.2 seconds to load all
         # f = '/Users/mx/Dropbox (Personal)/Science/TESS/TESS_SC_target_lists/unique_targets_S001-S023_obs_tic_gaia_banyan.feather'
-        f = os.path.join(path, 'unique_targets_S001-S023_obs_tic_gaia_banyan.feather')
+
+
+        ## TO DO ## 
+        ## ADD LINK TO DOWNLOAD FROM WHEREEVER THE CATALOG WILL BE STORED   
+        try:
+            f = os.path.join(path, 'unique_targets_S001-S023_obs_tic_gaia_banyan.feather')
+        except:
+            print('No catalog found. Please download from: "https://www.dropbox.com/s/h92c7vye460482h/unique_targets_S001-S023_obs_tic_gaia_banyan.feather?dl=0".')
+
+        self.keys = keys
         self.data = pd.read_feather(f, columns=keys)
         
         
         
-    def get(self, tic_id=None, sector=None, keys=None):
+    def get(self, tic_id=None, sector=None, keywords=None):
+        """
+        Parameters
+        ----------
+        tic_id : int, optional
+             The TESS Input Catalog ID for an object.
+        sector : list, optional
+             The sectors you want to search for stars.
+        keywords : list, optional
+             The table columns you want returned. Options include 'TICv8',
+             'GAIADR2', 'BANYAN', and 'OBS_' for TESS observing information. 
+             Other keywords can include 'parallax', 'radial_velocity', or other 
+             basic stellar parameters. The full list of keys can be seen by 
+             calling `self.keys`.
+
+        Returns
+        -------
+        df2 : pandas.DataFrame
+
+        """
+
         df2 = self.data
-        
+        keys = self.keys
+
+        #::: translate input into keys                                                                                                                                          
+        if keywords != None:
+            #::: user specific keywords                                                                                                                                    
+            keywords = list(np.atleast_1d(keywords))
+
+            if 'all' in keywords or '*' in keywords:
+                pass
+
+            elif 'default' in keys:
+                keys = self.get_default_keys()
+                keys.remove('default')
+
+            elif 'mag' in keys:
+                keys = self.get_magnitude_keys()
+
+            else:
+                temp_keys = np.array([])
+                for k in keywords:
+                    temp_keys = np.append(temp_keys, [i for i in keys if k in i])
+                keys = np.copy(temp_keys)
+
+        keys = np.append(['TIC_ID', 'OBS_Sector'], keys)
+
         #::: filter by tic_id(s), select only requested rows
         if tic_id is not None: 
             tic_id = [str(int(t)) for t in np.atleast_1d(tic_id)]
@@ -123,14 +154,12 @@ class catalog(object):
                 a = list(set(sector) & set(df2['OBS_Sector'][i].split(';')))
                 if len(a)>0: ind[i] = True
             df2 = df2[ind]
-        
-        #::: filter by keys, select only requested columns
-        if keys is not None:
-            keys = list(np.atleast_1d(keys))
-            keys += ['TIC_ID_requested']
-            df2 = df2[keys]
             
-        return df2
+        if len(df2[keys]) == 0:
+            print("This combination of TIC ID/Sectors is incorrect.")
+            return
+        else:
+            return df2[keys]
     
     
     
