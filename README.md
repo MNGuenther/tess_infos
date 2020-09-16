@@ -1,6 +1,6 @@
 # Welcome to tess_infos!
 
-This tool provides extremely fast Pythonic access to the full TICv8, GAIA DR2 and Banyan Sigma (Bayesian Young Associations Catalog) parameters for all TESS short-cadence targets from TESS Sectors 1--23. More Sectors and even more parameters (such as stellar rotation) will be added soon.
+This tool provides Pythonic access to the full TICv8, GAIA DR2 and Banyan Sigma parameters for all TESS short-cadence targets from TESS Sectors 1--23. More Sectors and even more parameters will be added soon.
 
 
 ## Files
@@ -9,7 +9,8 @@ The full catalog is hosted in a .feather file (300 MB), for extremely fast Pytho
 
 ## Install
 
-    pip install tess_infos
+    pip install tess-infos 
+    #note: here it is a hyphen, everywhere else it is an underscore; thanks a lot, PyPi!
 
 ## Quick start (1): get some TESS Infos of TOI-270 (TIC 259377017)
 
@@ -40,17 +41,18 @@ which takes a bit more memory but later in your code will you allow to also do:
     cat = catalog(keys=None) 
    
    keys : None / str / list of str
-   
-   None / 'default': defaults to self.default_keys
-   '*' / 'all': load all columns
-   'OBS': load all columns starting with OBS_
-   'TICv8': load all columns starting with TICv8_
-   'GAIADR2':  load all columns starting with GAIADR2_
-   'BANYAN': load all columns starting with BANYAN_
-   'mag': load all TICv8 columns containing magnitudes
-   
-   Combinations are also possible:
-   ['default','OBS','mag']   load all default columns + all columns from OBS + all magnitudes
+
+ - None / 'default': load all default keys (see below)
+ - '*' / 'all': load all columns
+ - 'OBS': load all columns starting with OBS_
+ - 'TICv8': load all columns starting with TICv8_
+ - 'GAIADR2':  load all columns starting with GAIADR2_ 
+ - 'BANYAN': load all columns starting with BANYAN_
+ - 'mag': load all TICv8 columns containing magnitudes
+
+Combinations are also possible:
+ - ['default','OBS','mag']   load all default columns + all columns from OBS + all magnitudes
+
 	
 ### (2) access the full catalog from memory
     cat.data #this returns the full catalog from memory
