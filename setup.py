@@ -34,7 +34,8 @@ setup(
                  'Intended Audience :: Science/Research',
                  'License :: OSI Approved :: MIT License',
                  'Programming Language :: Python'],
-    #install_requires=['feather-format>=0.4.1'],
+    install_requires=['feather-format>=0.4.1', 'pyarrow', 'pandas',
+                      'numpy', 'tqdm', 'matplotlib'],
     include_package_data = False
     )
 
