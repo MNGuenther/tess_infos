@@ -23,9 +23,9 @@ from setuptools import setup, find_packages
 setup(
     name = 'tess_infos',
     packages = find_packages(),
-    version = '0.1.0',
+    version = '0.1.1',
     description = 'Extremely fast Pythonic access to the full TICv8, GAIA DR2 and Banyan Sigma parameters for all TESS short-cadence targets',
-    author = 'Maximilian N. Günther', 
+    author = 'Maximilian N. Günther & Adina D. Feinstein', 
     author_email = 'maxgue@mit.edu',
     url = 'https://github.com/MNGuenther/tess_infos',
     download_url = 'https://github.com/MNGuenther/tess_infos',

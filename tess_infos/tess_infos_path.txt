@@ -1,0 +1,1 @@
+/Users/mx/Dropbox (Personal)/Science/TESS/TESS_SC_target_lists/unique_targets_S001-S026_obs_tic_gaia_banyan.feather

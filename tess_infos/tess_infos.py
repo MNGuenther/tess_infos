@@ -40,33 +40,64 @@ sns.set_context(rc={'lines.markeredgewidth': 1})
 
 
 
-__version__ = '0.1.0'
+__version__ = '0.1.1'
 
 
 
 class catalog(object):
     """
-    keywords: 
-        None / default   defaults to self.default_keys
-        * / all          load all columns
-        OBS              load all columns starting with OBS_
-        TICv8            load all columns starting with TICv8_
-        GAIADR2          load all columns starting with GAIADR2_
-        BANYAN           load all columns starting with BANYAN_
-        mag              load all TICv8 columns containing magnitudes
-        
-        also possible:
-        ['default','OBS','mag']   load all default columns + all columns from OBS + all magnitudes
+    The heart of it.
     """
     
-    def __init__(self, path=None):
+    
+    def __init__(self, keys='all', path=None):
+        """
+        Initialize the catalog class.
+
+        Parameters
+        ----------
+        keys : list, optional
+             The table columns you want returned. 
+             Options:
+                None / 'default'   defaults to self.default_keys
+                '*' / 'all'        load all columns
+                'OBS'              load all columns starting with OBS_
+                                   (the TESS observing information)
+                'TICv8'            load all columns starting with TICv8_
+                                   (TESS Input Catalog version 8)
+                'GAIADR2'          load all columns starting with GAIADR2_
+                                   (Gaia Data Release 2 information)
+                'BANYAN'           load all columns starting with BANYAN_
+                                   (BANYAN Sigma information)
+             More options (examples):
+                mag                              find and load all TICv8 columns containing magnitudes
+                ['parallax', 'radial_velocity']  find and load columns with those strings
+                ['default','OBS','mag']          find and load all default columns + all columns from OBS + all magnitudes
+             The full list of available keys can be seen by calling 'self.keys'.
+        path : str, optional
+            Path to where the catalog (feather) file is stored on your computer. 
+            The default is None.
+
+        Returns
+        -------
+        None.
+        """
         
-        #::: set the path to the catalog file
-        if path is None:
-            path = Path(__file__).parent.absolute()
+        #::: savefile storing the path to the catalog file
+        savefile = os.path.join( os.path.dirname(os.path.abspath(__file__)), 'tess_infos_path.txt' )
+        
+        #::: if given, set the path to the catalog file
+        if path is not None:
+            with open(savefile, 'w') as sf:
+                sf.write(path)
+        
+        #::: read the path to the catalog file
+        with open(savefile, 'r') as sf:
+            path = sf.read()
         
         #::: translate input into keys
-        keys = self.get_all_keys()
+        keys = self._translate_keys(keys)
+        self.keys = keys
                 
         #::: 15.8 seconds to load all
         # f = '/Users/mx/Dropbox (Personal)/Science/TESS/TESS_SC_target_lists/unique_targets_S001-S023_obs_tic_gaia_banyan.csv.gz'
@@ -78,21 +109,78 @@ class catalog(object):
         
         #::: 8.2 seconds to load all
         # f = '/Users/mx/Dropbox (Personal)/Science/TESS/TESS_SC_target_lists/unique_targets_S001-S023_obs_tic_gaia_banyan.feather'
-
-
+        # self.data = pd.read_feather(f, columns=keys)
+        
         ## TO DO ## 
         ## ADD LINK TO DOWNLOAD FROM WHEREEVER THE CATALOG WILL BE STORED   
         try:
-            f = os.path.join(path, 'unique_targets_S001-S023_obs_tic_gaia_banyan.feather')
+            self.data = pd.read_feather(path, columns=keys)
         except:
-            print('No catalog found. Please download from: "https://www.dropbox.com/s/h92c7vye460482h/unique_targets_S001-S023_obs_tic_gaia_banyan.feather?dl=0".')
+            print('WARNING:',
+                  '--------',
+                  'No catalog found.',
+                  'The following path was searched:',
+                  path,
+                  'You can permanently change this path by calling the function once as catalog(path=blabla).',
+                  'Simply replace blabla with the path were you stored the catalog.',
+                  'If you do not have the latest catalog, please first download it here:',
+                  'https://www.dropbox.com/s/kx5w4xombyvf4tg/unique_targets_S001-S026_obs_tic_gaia_banyan.feather?dl=0',
+                  sep='\n')
 
-        self.keys = keys
-        self.data = pd.read_feather(f, columns=keys)
+
+
+    def _translate_keys(self, keys):
+        """
+        Translate the user-input into the actual keys.
+
+        Parameters
+        ----------
+        keys : str or list of str
+            See above.
+
+        Returns
+        -------
+        list of str
+        """
         
+        if (keys is None) or (keys == 'default'):
+            return self.get_default_keys() # return the default keys (a light-weight version)
         
+        elif (keys == 'all') or (keys == '*'):
+            return self.get_all_keys() # return all keys
+                                                                                                                                
+        else:                                                                                                                                
+            keys = list(np.atleast_1d(keys)) # make sure the user-input is now a list
+
+            if ('all' in keys) or ('*' in keys):
+                return self.get_all_keys()  # return all keys
+            
+            else: 
+                #::: create a list of the actual keys, chosen by which ones match the user-given substrings
+                keys2 = [] 
+                for k in keys:
+                    if k == 'default':
+                        keys2.append(self.get_default_keys())
+                    else:
+                        for ak in self.get_all_keys():
+                            if k in ak:
+                                keys2.append(ak)
+                
+                #::: always include TIC_ID and OBS_Sector
+                keys2.insert(0, 'TIC_ID')
+                keys2.insert(1, 'OBS_Sector')
         
-    def get(self, tic_id=None, sector=None, keywords=None):
+                #::: ensure they are unique (luser-proof)
+                keys2 = list(set(keys2))
+        
+                #::: sort them in the same order as self.get_all_keys()
+                keys2 = [x for x in self.get_all_keys() if (x in keys2)] 
+                
+                return keys2
+    
+    
+    
+    def get(self, tic_id=None, sector=None, keys=None):
         """
         Parameters
         ----------
@@ -100,44 +188,37 @@ class catalog(object):
              The TESS Input Catalog ID for an object.
         sector : list, optional
              The sectors you want to search for stars.
-        keywords : list, optional
-             The table columns you want returned. Options include 'TICv8',
-             'GAIADR2', 'BANYAN', and 'OBS_' for TESS observing information. 
-             Other keywords can include 'parallax', 'radial_velocity', or other 
-             basic stellar parameters. The full list of keys can be seen by 
-             calling `self.keys`.
+        keys : list, optional
+             The table columns you want returned. 
+             Options:
+                None / 'default'   defaults to self.default_keys
+                '*' / 'all'        load all columns
+                'OBS'              load all columns starting with OBS_
+                                   (the TESS observing information)
+                'TICv8'            load all columns starting with TICv8_
+                                   (TESS Input Catalog version 8)
+                'GAIADR2'          load all columns starting with GAIADR2_
+                                   (Gaia Data Release 2 information)
+                'BANYAN'           load all columns starting with BANYAN_
+                                   (BANYAN Sigma information)
+             More options (examples):
+                mag                              find and load all TICv8 columns containing magnitudes
+                ['parallax', 'radial_velocity']  find and load columns with those strings
+                ['default','OBS','mag']          find and load all default columns + all columns from OBS + all magnitudes
+             The full list of available keys can be seen by calling 'self.keys'.
 
         Returns
         -------
         df2 : pandas.DataFrame
-
         """
 
+        #::: default
         df2 = self.data
-        keys = self.keys
 
-        #::: translate input into keys                                                                                                                                          
-        if keywords != None:
-            #::: user specific keywords                                                                                                                                    
-            keywords = list(np.atleast_1d(keywords))
 
-            if 'all' in keywords or '*' in keywords:
-                pass
+        #::: translate user-input into keys                                                                                                                                          
+        keys2 = self._translate_keys(keys)
 
-            elif 'default' in keys:
-                keys = self.get_default_keys()
-                keys.remove('default')
-
-            elif 'mag' in keys:
-                keys = self.get_magnitude_keys()
-
-            else:
-                temp_keys = np.array([])
-                for k in keywords:
-                    temp_keys = np.append(temp_keys, [i for i in keys if k in i])
-                keys = np.copy(temp_keys)
-
-        keys = np.append(['TIC_ID', 'OBS_Sector'], keys)
 
         #::: filter by tic_id(s), select only requested rows
         if tic_id is not None: 
@@ -145,6 +226,7 @@ class catalog(object):
             df2 = df2.loc[df2['TIC_ID'].isin(list(tic_id))]
             df2 = pd.merge(pd.DataFrame(data=tic_id,columns=['TIC_ID_requested'],dtype=str), df2, left_on='TIC_ID_requested', right_on='TIC_ID', how='left')
             # df2 = df2.iloc[pd.Index(df2['TIC_ID']).get_indexer(list(tic_id))]
+        
         
         #::: filter by sector(s), select only requested rows
         if sector is not None: 
@@ -155,11 +237,12 @@ class catalog(object):
                 if len(a)>0: ind[i] = True
             df2 = df2[ind]
             
-        if len(df2[keys]) == 0:
+            
+        if len(df2[keys2]) == 0:
             print("This combination of TIC ID/Sectors is incorrect.")
-            return
+            return None
         else:
-            return df2[keys]
+            return df2[keys2]
     
     
     
